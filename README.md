@@ -5,6 +5,7 @@ This project is a "fork" of the "hello-ivy" example in the apache-ivy distributi
 
 > Requirements :
 > Ant and Ivy have to be installed
+> Artifactory and the JFrog CLI configured with Artifactory
 
 
 ## How to 
