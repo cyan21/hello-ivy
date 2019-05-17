@@ -4,8 +4,7 @@
 This project is a "fork" of the "hello-ivy" example in the apache-ivy distribution
 
 > Requirements :
-> Ant and Ivy have to be installed
-> Artifactory and the JFrog CLI configured with Artifactory
+> Ant and Ivy have to be installed + JFrog CLI configured with Artifactory
 
 
 ## How to 
@@ -15,7 +14,7 @@ This project is a "fork" of the "hello-ivy" example in the apache-ivy distributi
 ```
 $ ant publish 
 ```
-it will publish the following artifact : org/ych/hello-ivy-0.1.jar into Artifactory
+it will publish the following artifact : org/ych/hello-ivy-0.1.jar along with a build info  into Artifactory 
 
 
 
