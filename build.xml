@@ -7,7 +7,7 @@
    "License"); you may not use this file except in compliance
    with the License.  You may obtain a copy of the License at
 
-     http://www.apache.org/licenses/LICENSE-2.0
+	 http://www.apache.org/licenses/LICENSE-2.0
 
    Unless required by applicable law or agreed to in writing,
    software distributed under the License is distributed on an
@@ -18,87 +18,163 @@
 -->
 <project name="hello-ivy" default="run" xmlns:ivy="antlib:org.apache.ivy.ant">
 
-    <ivy:settings file="ivysettings.xml"/>
+	<ivy:settings file="ivysettings.xml"/>
 
-    <property name="my_revision" value="0.1" />
+	<property name="my_revision" value="0.3" />
+	<property name="build_name" value="hello-ivy-project" />
+	<property name="build_number" value="1" />
 
-    <!-- some variables used -->
-    <property name="lib.dir" value="lib" />
-    <property name="build.dir" value="build" />
-    <property name="src.dir" value="src" />
-    <property name="dist.dir" value="dist" />
-    
-    <!-- paths used for compilation and run  -->
-    <path id="lib.path.id">
-        <fileset dir="${lib.dir}" />
-	</path>
-    <path id="run.path.id">
-        <path refid="lib.path.id" />
-        <path location="${build.dir}" />
-    </path>
-    
-    <!-- ================================= 
-          target: resolve              
-         ================================= -->
-    <target name="resolve" description="--> retreive dependencies with ivy">
-        <ivy:retrieve/>
-    </target>    
-    
-    <!-- ================================= 
-          target: report              
-         ================================= -->
-    <target name="report" depends="resolve" description="--> generates a report of dependencies">
-        <ivy:report todir="${build.dir}"/>
-    </target>
-
-    <!-- ================================= 
-          target: run
-         ================================= -->
-    <target name="run" depends="resolve" description="--> compile and run the project">
-        <mkdir dir="${build.dir}" />
-        <mkdir dir="${dist.dir}" />
-        <javac srcdir="${src.dir}" destdir="${build.dir}" classpathref="lib.path.id" includeAntRuntime="false"/>
-    	<property name="msg" value="hello ivy !"/>
-        <java classpathref="run.path.id" classname="example.Hello">
-        	<arg value="-message"/>
-        	<arg value="${msg}"/>
-    	</java>
-    </target>
-
-    <target name="jar" depends="run" description="--> compile and run the project">
-	    <jar destfile="${dist.dir}/hello-ivy-${my_revision}.jar"
-             basedir="${build.dir}/example" />
-    </target>
-
-    <!-- ================================= 
-          target: clean              
-         ================================= -->
-    <target name="clean" description="--> clean the project">
-        <delete includeemptydirs="true">
-            <fileset dir="${basedir}">
-            	<exclude name="src/**" />
-            	<exclude name="build.xml" />
-                <exclude name="ivy.xml" />
-                <exclude name="ivysettings.xml" />
-            </fileset>
-    	</delete>
-    </target>
+	<!-- some variables used -->
+	<property name="lib.dir" value="lib" />
+	<property name="build.dir" value="build" />
+	<property name="src.dir" value="src" />
+	<property name="dist.dir" value="dist" />
 	
-    <!-- ================================= 
-          target: clean-cache              
-         ================================= -->
+	<!-- paths used for compilation and run  -->
+	<path id="lib.path.id">
+		<fileset dir="${lib.dir}" />
+	</path>
+	<path id="run.path.id">
+		<path refid="lib.path.id" />
+		<path location="${build.dir}" />
+	</path>
+	
+   <!-- external libraries classpath, we don't need sources and javadoc -->
+   <path id="classpath">
+	<fileset dir="${basedir}/">
+		<include name="${lib.dir}/*.jar" />
+		<exclude name="${lib.dir}/*sources.jar"/>
+		<exclude name="${lib.dir}/*javadoc.jar"/>
+	</fileset>
+   </path> 
+
+	<!-- ================================= 
+		  target: resolve              
+		 ================================= -->
+	<target name="resolve" description="--> retreive dependencies with ivy">
+
+		<ivy:retrieve/>
+
+        <exec executable="jfrog.exe">
+            <arg value="rt"/>
+            <arg value="bad"/>
+            <arg value="--regexp=true"/>
+            <arg value="--exclude-patterns=source;javadoc"/>
+            <arg value="${build_name}"/>
+            <arg value="${build_number}"/>
+            <arg value="lib"/>
+        </exec>
+	</target>    
+	
+	<!-- ================================= 
+		  target: report              
+		 ================================= -->
+	<target name="report" depends="resolve" description="--> generates a report of dependencies">
+		<ivy:report todir="${build.dir}"/>
+
+
+	</target>
+
+	<!-- ================================= 
+		  target: run
+		 ================================= -->
+	<target name="run" depends="resolve" description="--> compile and run the project">
+		<mkdir dir="${build.dir}" />
+		<mkdir dir="${dist.dir}" />
+		<javac srcdir="${src.dir}" destdir="${build.dir}" classpathref="lib.path.id" includeAntRuntime="true"/>
+	<!--
+		<javac srcdir="${src.dir}" destdir="${build.dir}" classpathref="lib.path.id" includeAntRuntime="false"/>
+-->
+		<property name="msg" value="hello ivy !"/>
+		<java classpathref="run.path.id" classname="example.Hello">
+			<arg value="-message"/>
+			<arg value="${msg}"/>
+		</java>
+	</target>
+
+	<!-- constructs the external libraries classpath name -->
+	<pathconvert property="classpath.name" pathsep=" ">
+		<path refid="classpath" />
+		<mapper>
+			<chainedmapper>
+				<flattenmapper />
+				<globmapper from="*.jar" to="lib/*.jar" />
+			</chainedmapper>
+		</mapper>
+	</pathconvert>
+
+	<target name="copy-dependencies">
+	<mkdir dir="build/${lib.dir}" />
+		<copy todir="build/${lib.dir}">
+		<fileset dir="${lib.dir}" includes="**/*.jar" excludes="**/*sources.jar, **/*javadoc.jar" />
+	</copy>
+	</target>
+
+	<target name="jar" depends="run,copy-dependencies" description="--> compile and run the project">
+		<jar destfile="${dist.dir}/hello-ivy-${my_revision}.jar" basedir="${build.dir}/">
+            <manifest>
+                <attribute name="Main-Class" value="example.Hello"/>
+    			<attribute name="Class-Path" value="${classpath.name}" />
+            </manifest>
+        </jar>
+	</target>
+
+	<!-- ================================= 
+		  target: clean              
+		 ================================= -->
+	<target name="clean" description="--> clean the project">
+		<delete includeemptydirs="true">
+			<fileset dir="${basedir}">
+				<exclude name="src/**" />
+				<exclude name="build.xml" />
+				<exclude name="ivy.xml" />
+				<exclude name="ivysettings.xml" />
+			</fileset>
+		</delete>
+	</target>
+	
+	<!-- ================================= 
+		  target: clean-cache              
+		 ================================= -->
 	<target name="clean-cache" description="--> clean the ivy cache">
 		<ivy:cleancache />
 	</target>
 
-    <!-- ================================= 
-          target: deployment             
-         ================================= -->
+	<!-- ================================= 
+		  target: deployment             
+		 ================================= -->
 
 	<target name="publish" depends="resolve,run,jar" description="--> publish artifacts">
-     		<ivy:publish resolver="public" overwrite="true">
-        		<artifacts pattern="dist/[artifact]-[revision].jar" />
-     		</ivy:publish>
-    	</target>
+        <ivy:publish resolver="public" overwrite="true">
+            <artifacts pattern="dist/[artifact]-[revision].jar" /> 
+        </ivy:publish>
+
+        <!-- capture env variables -->
+		<exec executable="jfrog.exe">
+            <arg value="rt"/>
+            <arg value="bce"/>
+            <arg value="${build_name}"/>
+            <arg value="${build_number}"/>
+        </exec>
+	
+
+        <!-- upload artifact -->
+		<exec executable="jfrog.exe">
+            <arg value="rt"/>
+            <arg value="u"/>
+			<arg value="dist/hello-ivy-0.3.jar"/>
+			<arg value="ivy-dev/${dist.dir}/hello-ivy-${my_revision}.jar"/>
+            <arg value="--build-name=${build_name}"/>
+            <arg value="--build-number=${build_number}"/>
+        </exec>
+	
+        <!-- publish build info -->
+    	<exec executable="jfrog.exe">
+            <arg value="rt"/>
+            <arg value="bp"/>
+            <arg value="${build_name}"/>
+            <arg value="${build_number}"/>
+        </exec>
+    </target>
 
 </project>
